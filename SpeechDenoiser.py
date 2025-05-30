@@ -49,7 +49,7 @@ class SpeechDenoiser:
         
         return noisy_signal, noise
     
-    def spectral_subtraction(self, noisy_signal, noise_profile=None, alpha=1.0, beta=0.01):
+    def spectral_subtraction(self, noisy_signal, noise_profile=None, alpha=3.2, beta=0.0001):
         """
         频谱减法去噪
         参数:
@@ -121,7 +121,7 @@ class SpeechDenoiser:
         
         return enhanced
     
-    def wiener_filter(self, noisy_signal, noise_profile=None, iterations=3):
+    def wiener_filter(self, noisy_signal, noise_profile=None, iterations=5):
         """
         维纳滤波去噪
         参数:
@@ -228,6 +228,13 @@ class SpeechDenoiser:
     
     def calculate_snr(self, clean_signal, processed_signal):
         """计算信噪比(SNR)"""
+        """       
+        20dB:高质量语音
+        10-20dB:可接受质量
+        <10dB:严重噪声污染
+        代码中默认使用5dB(高噪声环境)
+        """
+
         # 确保信号长度一致
         min_length = min(len(clean_signal), len(processed_signal))
         clean_signal = clean_signal[:min_length]
@@ -235,11 +242,11 @@ class SpeechDenoiser:
         
         # 计算信号功率
         signal_power = np.mean(clean_signal ** 2)
-        
+        print(f"信号功率: {signal_power:.4f}")
         # 计算噪声功率
         noise = processed_signal - clean_signal
         noise_power = np.mean(noise ** 2)
-        
+        print(f"噪声功率: {noise_power:.4f}")
         # 避免除以零
         if noise_power == 0:
             return float('inf')
@@ -261,24 +268,24 @@ class SpeechDenoiser:
         # 干净信号
         plt.subplot(3, 1, 1)
         plt.plot(clean)
-        plt.title("Clean Speech")
-        plt.xlabel("Sample")
-        plt.ylabel("Amplitude")
+        plt.title("干净信号")
+        plt.xlabel("样本")
+        plt.ylabel("幅度")
         
         # 带噪信号
         plt.subplot(3, 1, 2)
         plt.plot(noisy)
-        plt.title(f"Noisy Speech (SNR: {self.calculate_snr(clean, noisy):.2f} dB)")
-        plt.xlabel("Sample")
-        plt.ylabel("Amplitude")
+        plt.title(f"带噪信号 (SNR: {self.calculate_snr(clean, noisy):.2f} dB)")
+        plt.xlabel("样本")
+        plt.ylabel("幅度")
         
         # 去噪信号
         plt.subplot(3, 1, 3)
         plt.plot(enhanced)
         plt.title(f"{title} (SNR Improvement: {self.calculate_snr(clean, enhanced) - self.calculate_snr(clean, noisy):.2f} dB)")
-        plt.xlabel("Sample")
-        plt.ylabel("Amplitude")
-        
+        plt.xlabel("样本")
+        plt.ylabel("幅度")
+
         plt.tight_layout()
         if save_path:
             plt.savefig(save_path)
@@ -334,10 +341,10 @@ class SpeechDenoiser:
         print("="*60)
         
         # 绘制波形图
-        self.plot_signals(clean_signal, noisy_signal, ss_enhanced, "Spectral Subtraction Enhanced")
-        self.plot_signals(clean_signal, noisy_signal, wf_enhanced, "Wiener Filter Enhanced")
-        self.plot_signals(clean_signal, noisy_signal, wt_enhanced, "Wavelet Denoising Enhanced")
-        
+        self.plot_signals(clean_signal, noisy_signal, ss_enhanced, "频谱相减增强")
+        self.plot_signals(clean_signal, noisy_signal, wf_enhanced, "维纳滤波器增强")
+        self.plot_signals(clean_signal, noisy_signal, wt_enhanced, "小波去噪增强")
+
         return {
             "spectral_subtraction": (ss_enhanced, ss_snr, ss_time),
             "wiener_filter": (wf_enhanced, wf_snr, wf_time),
@@ -347,11 +354,14 @@ class SpeechDenoiser:
 # 使用示例
 if __name__ == "__main__":
     # 初始化去噪系统
+    plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+    plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
+
     denoiser = SpeechDenoiser(sr=16000, frame_length=512, hop_length=256, n_fft=1024)
     
     # 加载干净语音
     print("正在加载音频文件...")
-    clean_signal, sr = denoiser.load_audio("24.wav")
+    clean_signal, sr = denoiser.load_audio("IKUN.wav")
     
     # 添加噪声 (SNR=5dB)
     snr_db = 5
